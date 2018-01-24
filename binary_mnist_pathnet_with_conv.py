@@ -95,22 +95,25 @@ def train():
   # Hidden Layers
   weights_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object);
   biases_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object);
-  for i in range(FLAGS.L):
-    for j in range(FLAGS.M):
-      if(i==0):
-        weights_list[i,j]=pathnet.module_weight_variable([784,FLAGS.filt]);
-        biases_list[i,j]=pathnet.module_bias_variable([FLAGS.filt]);
-      else:
-        weights_list[i,j]=pathnet.module_weight_variable([FLAGS.filt,FLAGS.filt]);
-        biases_list[i,j]=pathnet.module_bias_variable([FLAGS.filt]);
+
+  # change: put init part into pathnet.module
+
+  #for i in range(FLAGS.L):
+  #  for j in range(FLAGS.M):
+      #if(i==0):
+        #weights_list[i,j]=pathnet.module_weight_variable([784,FLAGS.filt]);
+        # biases_list[i,j]=pathnet.module_bias_variable([FLAGS.filt]);
+      #else:
+        #weights_list[i,j]=pathnet.module_weight_variable([FLAGS.filt,FLAGS.filt]);
+        #biases_list[i,j]=pathnet.module_bias_variable([FLAGS.filt]);
   
   for i in range(FLAGS.L):
     layer_modules_list=np.zeros(FLAGS.M,dtype=object);
     for j in range(FLAGS.M):
       if(i==0):
-        layer_modules_list[j]=pathnet.module(x, weights_list[i,j], biases_list[i,j], 'layer'+str(i+1)+"_"+str(j+1))*geopath[i,j];
+        layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module(x, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
       else:
-        layer_modules_list[j]=pathnet.module2(j,net, weights_list[i,j], biases_list[i,j], 'layer'+str(i+1)+"_"+str(j+1))*geopath[i,j];
+        layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module2(j,net, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
     net=np.sum(layer_modules_list)/FLAGS.M;
   #net=net/FLAGS.M;  
   # Output Layer
