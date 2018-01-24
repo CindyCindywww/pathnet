@@ -104,7 +104,12 @@ def variable_summaries(var):
     tf.summary.scalar('min', tf.reduce_min(var))
     tf.summary.histogram('histogram', var)
 
-def module(input_tensor, weights, biases, layer_name, act=tf.nn.relu):
+# input layer module, in another word, first hidden layer
+def module(input_tensor, filt_num, is_active, layer_name, act=tf.nn.relu):
+  # init
+  weights=module_weight_variable([int(input_tensor.shape[-1]), filt_num])
+  biases=module_bias_variable([filt_num])
+
   # Adding a name scope ensures logical grouping of the layers in the graph.
   with tf.name_scope(layer_name):
     # This Variable will hold the state of the weights for the layer
@@ -117,14 +122,19 @@ def module(input_tensor, weights, biases, layer_name, act=tf.nn.relu):
       tf.summary.histogram('pre_activations', preactivate)
     activations = act(preactivate, name='activation')
     tf.summary.histogram('activations', activations)
-    return activations
+    return activations * is_active, weights, biases
 
-def module2(i,input_tensor, weights, biases, layer_name, act=tf.nn.relu):
+# hidden layer module, include three kinds of modules in a layer
+def module2(i,input_tensor, filt_num, is_active, layer_name, act=tf.nn.relu):
+  # init
+  weights = module_weight_variable([filt_num, filt_num])
+  biases = module_bias_variable([filt_num])
+  
   # Adding a name scope ensures logical grouping of the layers in the graph.
   with tf.name_scope(layer_name):
     # Skip Layer
     if(i%3==0):
-      return input_tensor;
+      return input_tensor * is_active, weights, biases
     # Linear Layer with relu
     elif(i%3==1):
       # This Variable will hold the state of the weights for the layer
@@ -137,7 +147,7 @@ def module2(i,input_tensor, weights, biases, layer_name, act=tf.nn.relu):
         tf.summary.histogram('pre_activations', preactivate)
       activations = act(preactivate, name='activation')
       tf.summary.histogram('activations', activations)
-      return activations
+      return activations * is_active, weights, biases
     # Residual Layer with relu
     elif(i%3==2):
       # This Variable will hold the state of the weights for the layer
@@ -150,7 +160,7 @@ def module2(i,input_tensor, weights, biases, layer_name, act=tf.nn.relu):
         tf.summary.histogram('pre_activations', preactivate)
       activations = act(preactivate, name='activation')+input_tensor
       tf.summary.histogram('activations', activations)
-      return activations
+      return activations * is_active, weights, biases
 
 def conv_module(input_tensor, weights, biases, stride, layer_name, act=tf.nn.relu):
   # Adding a name scope ensures logical grouping of the layers in the graph.
