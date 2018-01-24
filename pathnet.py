@@ -127,7 +127,7 @@ def module(input_tensor, filt_num, is_active, layer_name, act=tf.nn.relu):
 # hidden layer module, include three kinds of modules in a layer
 def module2(i,input_tensor, filt_num, is_active, layer_name, act=tf.nn.relu):
   # init
-  weights = module_weight_variable([filt_num, filt_num])
+  weights = module_weight_variable([int(input_tensor.shape[-1]), filt_num])
   biases = module_bias_variable([filt_num])
   
   # Adding a name scope ensures logical grouping of the layers in the graph.
@@ -162,7 +162,10 @@ def module2(i,input_tensor, filt_num, is_active, layer_name, act=tf.nn.relu):
       tf.summary.histogram('activations', activations)
       return activations * is_active, weights, biases
 
-def conv_module(input_tensor, weights, biases, stride, layer_name, act=tf.nn.relu):
+def conv_module(input_tensor, filt_num, is_active, stride, layer_name, act=tf.nn.relu):
+  # init
+  weights=module_weight_variable([filt_num, filt_num])
+  biases=module_bias_variable([filt_num])
   # Adding a name scope ensures logical grouping of the layers in the graph.
   with tf.name_scope(layer_name):
     # This Variable will hold the state of the weights for the layer
@@ -171,11 +174,31 @@ def conv_module(input_tensor, weights, biases, stride, layer_name, act=tf.nn.rel
     with tf.name_scope('biases'):
       variable_summaries(biases[0])
     with tf.name_scope('Wx_plus_b'):
-      preactivate = tf.nn.conv2d(input_tensor,weights[0],strides=[1,stride,stride,1],padding="VALID") + biases
+      initial = tf.truncated_normal([5,5,20,filt_num], stddev=0.1)
+      preactivate = tf.nn.conv2d(input_tensor, filter=tf.Variable(initial),strides=[1,stride,stride,1],padding="VALID") + biases
       tf.summary.histogram('pre_activations', preactivate)
     activations = act(preactivate, name='activation')
     tf.summary.histogram('activations', activations)
-    return activations
+    return activations * is_active, weights, biases
+
+def conv_module_first(input_tensor, filt_num, is_active, stride, layer_name, act=tf.nn.relu):
+  # init
+  weights=module_weight_variable([784, filt_num])
+  biases=module_bias_variable([filt_num])
+  # Adding a name scope ensures logical grouping of the layers in the graph.
+  with tf.name_scope(layer_name):
+    # This Variable will hold the state of the weights for the layer
+    with tf.name_scope('weights'):
+      variable_summaries(weights[0])
+    with tf.name_scope('biases'):
+      variable_summaries(biases[0])
+    with tf.name_scope('Wx_plus_b'):
+      initial = tf.truncated_normal([5,5,1,filt_num], stddev=0.1)
+      preactivate = tf.nn.conv2d(input_tensor, filter=tf.Variable(initial),strides=[1,stride,stride,1],padding="VALID") + biases
+      tf.summary.histogram('pre_activations', preactivate)
+    activations = act(preactivate, name='activation')
+    tf.summary.histogram('activations', activations)
+    return activations * is_active, weights, biases
  
 def nn_layer(input_tensor, weights, biases, layer_name, act=tf.nn.relu):
   # Adding a name scope ensures logical grouping of the layers in the graph.
@@ -189,62 +212,3 @@ def nn_layer(input_tensor, weights, biases, layer_name, act=tf.nn.relu):
       preactivate = tf.matmul(input_tensor, weights[0]) + biases
       tf.summary.histogram('pre_activations', preactivate)
     return preactivate;
-
-
-def _variable_with_weight_decay(name, shape, wd, initializer, trainable=True):
-  var = _variable_on_device(name, shape, initializer, trainable)
-  if wd is not None and trainable:
-    weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
-    tf.add_to_collection('losses', weight_decay)
-  return var
-
-
-def _conv_layer(layer_name, input_tensor, filters, size, stride, padding,freeze=False, xavier=False, relu=True, stddev=0.001):
-  with tf.variable_scope(layer_name) as scope:
-    channels = input_tensor.get_shape()[3]
-    # re-order the caffe kernel with shape [out, in, h, w] -> tf kernel with
-    # shape [h, w, in, out]
-    kernel_init = tf.truncated_normal_initializer(stddev=stddev, dtype=tf.float32)
-    bias_init = tf.constant_initializer(0.0)
-    kernel = _variable_with_weight_decay('kernels', shape=[size, size, int(channels), filters],
-      wd=0.0001, initializer=kernel_init, trainable=(not freeze))
-    biases = _variable_on_device('biases', [filters], bias_init, 
-                                trainable=(not freeze))
-    conv = tf.nn.conv2d(input_tensor, kernel, [1, stride, stride, 1], padding=padding,name='convolution')
-    conv_bias = tf.nn.bias_add(conv, biases, name='bias_add')
-    if relu:
-      out = tf.nn.relu(conv_bias, 'relu')
-    else:
-      out = conv_bias
-    return out
-
-def _pooling_layer( layer_name, input_tensor, size, stride, padding='VALID'):
-  with tf.variable_scope(layer_name) as scope:
-    out =  tf.nn.max_pool(input_tensor, ksize=[1, size, size, 1], strides=[1, stride, stride, 1],padding=padding)
-    activation_size = np.prod(out.get_shape().as_list()[1:])
-    return out
-
-
-#resnet for convolution
-def res_conv_module(layer_name, input_tensor,  stddev=0.01,freeze=False):
-  filter_num = tf.shape(input_tensor)[3]
-  result_of_first_layer = _conv_layer(layer_name+'/firstlayer', input_tensor, filters = filter_num, size = 3, stride = 1,
-    padding = 'SAME', stddev = stddev, freeze = freeze)
-  result_of_second_layer = _conv_layer(layer_name+'/secondlayer', result_of_first_layer, filters = filter_num, size = 3, stride = 1,
-    padding = 'SAME', stddev = stddev, freeze = freeze)
-  return input_tensor + result_of_second_layer
-  
-
-#fire module
-def fire_layer(layer_name, input_tensor, s1x1, e1x1, e3x3, stddev=0.01,freeze=False):
-  sq1x1 = _conv_layer(layer_name+'/squeeze1x1', input_tensor, filters=s1x1, size=1, stride=1,
-    padding='SAME', stddev=stddev, freeze=freeze)
-  ex1x1 = _conv_layer(layer_name+'/expand1x1', sq1x1, filters=e1x1, size=1, stride=1,
-    padding='SAME', stddev=stddev, freeze=freeze)
-  ex3x3 = _conv_layer(layer_name+'/expand3x3', sq1x1, filters=e3x3, size=3, stride=1,
-    padding='SAME', stddev=stddev, freeze=freeze)
-  return tf.concat([ex1x1, ex3x3], 3, name=layer_name+'/concat')
-
-#REF module
-def REF_module():
-

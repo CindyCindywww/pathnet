@@ -107,14 +107,24 @@ def train():
         #weights_list[i,j]=pathnet.module_weight_variable([FLAGS.filt,FLAGS.filt]);
         #biases_list[i,j]=pathnet.module_bias_variable([FLAGS.filt]);
   
-  for i in range(FLAGS.L):
-    layer_modules_list=np.zeros(FLAGS.M,dtype=object);
-    for j in range(FLAGS.M):
-      if(i==0):
-        layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module(x, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
-      else:
-        layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module2(j,net, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
-    net=np.sum(layer_modules_list)/FLAGS.M;
+  layer_modules_list=np.zeros(FLAGS.M,dtype=object)
+  i = 0
+  for j in range(FLAGS.M):
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module_first(image_shaped_input, FLAGS.filt, geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
+  net=np.sum(layer_modules_list)/FLAGS.M;
+
+  i = 1
+  for j in range(FLAGS.M):
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module(net, FLAGS.filt, geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
+  net=np.sum(layer_modules_list)/FLAGS.M;
+
+  net=tf.reshape(net,[-1,8000])
+  i = 2
+  for j in range(FLAGS.M):
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module(net, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+  net=np.sum(layer_modules_list)/FLAGS.M;
+
+  
   #net=net/FLAGS.M;  
   # Output Layer
   output_weights=pathnet.module_weight_variable([FLAGS.filt,2]);
