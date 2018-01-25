@@ -110,7 +110,7 @@ def train():
   layer_modules_list=np.zeros(FLAGS.M,dtype=object)
   i = 0
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module_first(image_shaped_input, FLAGS.filt, geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module(image_shaped_input, FLAGS.filt, geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
 
   i = 1
@@ -124,7 +124,7 @@ def train():
     layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module(net, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
 
-  
+  # need to change: put this values into module
   #net=net/FLAGS.M;  
   # Output Layer
   output_weights=pathnet.module_weight_variable([FLAGS.filt,2]);
@@ -161,6 +161,7 @@ def train():
   merged = tf.summary.merge_all()
   train_writer = tf.summary.FileWriter(FLAGS.log_dir + '/train1', sess.graph)
   test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/test1')
+
   tf.global_variables_initializer().run()
 
   # Generating randomly geopath
@@ -229,6 +230,7 @@ def train():
           geopath_sum[k][l]+=geopath_set[j][k][l];
     print(geopath_sum);
     """    
+  # record steps to find optimal path in task1
   iter_task1=i;    
   
   # Fix task1 Optimal Path
@@ -262,18 +264,20 @@ def train():
  
   ## TASK 2
   # Need to learn variables
-  var_list_to_learn=[]+output_weights+output_biases;
+  var_list_to_learn=[]+output_weights+output_biases
   for i in range(FLAGS.L):
     for j in range(FLAGS.M):
       if (fixed_list[i,j]=='0'):
-        var_list_to_learn+=weights_list[i,j]+biases_list[i,j];
-  
+        var_list_to_learn+=weights_list[i,j]+biases_list[i,j]
+
+  '''
   for i in range(FLAGS.L):
     for j in range(FLAGS.M):
       if(fixed_list[i,j]=='1'):
         tmp=biases_list[i,j][0];
         break;
     break;
+  '''
 
   # Initialization
   merged = tf.summary.merge_all()
@@ -284,7 +288,7 @@ def train():
   # Update fixed values
   pathnet.parameters_update(sess,var_fix_placeholders,var_fix_ops,var_list_fix);
  
-  # GradientDescent  
+  # GradientDescent
   with tf.name_scope('train'):
     train_step = tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(cross_entropy,var_list=var_list_to_learn);
   

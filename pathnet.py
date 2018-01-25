@@ -164,42 +164,22 @@ def module2(i,input_tensor, filt_num, is_active, layer_name, act=tf.nn.relu):
 
 def conv_module(input_tensor, filt_num, is_active, stride, layer_name, act=tf.nn.relu):
   # init
-  weights=module_weight_variable([filt_num, filt_num])
+  conv_kernel = module_weight_variable([int(input_tensor.shape[-1]),filt_num])
   biases=module_bias_variable([filt_num])
   # Adding a name scope ensures logical grouping of the layers in the graph.
   with tf.name_scope(layer_name):
     # This Variable will hold the state of the weights for the layer
-    with tf.name_scope('weights'):
-      variable_summaries(weights[0])
+    with tf.name_scope('conv_kernel'):
+      variable_summaries(conv_kernel[0])
     with tf.name_scope('biases'):
       variable_summaries(biases[0])
-    with tf.name_scope('Wx_plus_b'):
-      initial = tf.truncated_normal([5,5,20,filt_num], stddev=0.1)
-      preactivate = tf.nn.conv2d(input_tensor, filter=tf.Variable(initial),strides=[1,stride,stride,1],padding="VALID") + biases
+    with tf.name_scope('conv_plus_b'):
+      preactivate = tf.nn.conv2d(input_tensor, filter=conv_kernel[0],strides=[1,stride,stride,1],padding="VALID") + biases
       tf.summary.histogram('pre_activations', preactivate)
     activations = act(preactivate, name='activation')
     tf.summary.histogram('activations', activations)
-    return activations * is_active, weights, biases
+    return activations * is_active, conv_kernel, biases
 
-def conv_module_first(input_tensor, filt_num, is_active, stride, layer_name, act=tf.nn.relu):
-  # init
-  weights=module_weight_variable([784, filt_num])
-  biases=module_bias_variable([filt_num])
-  # Adding a name scope ensures logical grouping of the layers in the graph.
-  with tf.name_scope(layer_name):
-    # This Variable will hold the state of the weights for the layer
-    with tf.name_scope('weights'):
-      variable_summaries(weights[0])
-    with tf.name_scope('biases'):
-      variable_summaries(biases[0])
-    with tf.name_scope('Wx_plus_b'):
-      initial = tf.truncated_normal([5,5,1,filt_num], stddev=0.1)
-      preactivate = tf.nn.conv2d(input_tensor, filter=tf.Variable(initial),strides=[1,stride,stride,1],padding="VALID") + biases
-      tf.summary.histogram('pre_activations', preactivate)
-    activations = act(preactivate, name='activation')
-    tf.summary.histogram('activations', activations)
-    return activations * is_active, weights, biases
- 
 def nn_layer(input_tensor, weights, biases, layer_name, act=tf.nn.relu):
   # Adding a name scope ensures logical grouping of the layers in the graph.
   with tf.name_scope(layer_name):
