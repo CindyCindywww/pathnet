@@ -93,8 +93,8 @@ def train():
       fixed_list[i,j]='0';    
 
   # Hidden Layers
-  weights_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object);
-  biases_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object);
+  weights_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object)  # weights_list also record conv_kernels
+  biases_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object)
 
   # change: put init part into pathnet.module
 
@@ -110,12 +110,12 @@ def train():
   layer_modules_list=np.zeros(FLAGS.M,dtype=object)
   i = 0
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module(image_shaped_input, FLAGS.filt, geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module(image_shaped_input, FLAGS.filt, [5,5], geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
 
   i = 1
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module(net, FLAGS.filt, geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module(net, FLAGS.filt, [5,5], geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
 
   net=tf.reshape(net,[-1,8000])
@@ -127,9 +127,7 @@ def train():
   # need to change: put this values into module
   #net=net/FLAGS.M;  
   # Output Layer
-  output_weights=pathnet.module_weight_variable([FLAGS.filt,2]);
-  output_biases=pathnet.module_bias_variable([2]);
-  y = pathnet.nn_layer(net,output_weights,output_biases,'output_layer');
+  y, output_weights, output_biases= pathnet.nn_layer(net, 2, 'output_layer');
 
   # Cross Entropy
   with tf.name_scope('cross_entropy'):
@@ -369,14 +367,12 @@ def train():
   train_writer.close()
   test_writer.close()
 
-
 def main(_):
   FLAGS.log_dir+=str(int(time.time()));
   if tf.gfile.Exists(FLAGS.log_dir):
     tf.gfile.DeleteRecursively(FLAGS.log_dir)
   tf.gfile.MakeDirs(FLAGS.log_dir)
   train()
-
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
