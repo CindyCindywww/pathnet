@@ -268,7 +268,7 @@ def _conv_layer(layer_name, input_tensor, filters, size, stride, padding ,freeze
     return out, kernel, biases
 
   
-def max_pooling_layer(input_tensor, size, stride, padding, layer_name):
+def _max_pooling_layer(input_tensor, kernel_size, stride, padding, layer_name):
   """Max pooling layer operation constructor.
   Args:
     layer_name: layer name.
@@ -284,10 +284,10 @@ def max_pooling_layer(input_tensor, size, stride, padding, layer_name):
     out =  tf.nn.max_pool(input_tensor, ksize=[1, size, size, 1], 
                           strides=[1, stride, stride, 1],padding=padding)
     activation_size = np.prod(out.get_shape().as_list()[1:])
-    return out, module_weight_variable([1]), module_weight_variable([1])
+    return out
 
 
-def fire_layer(layer_name, input_tensor, s1x1, e1x1, e3x3, stddev=0.01,freeze=False):
+def fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev=0.01,freeze=False):
   """Fire layer constructor.
 
   Args:
@@ -318,11 +318,11 @@ def fire_layer(layer_name, input_tensor, s1x1, e1x1, e3x3, stddev=0.01,freeze=Fa
   kernels.append(_kernel)
   biases.append(_bias)
   
-  return tf.concat([ex1x1, ex3x3], 3, name=layer_name+'/concat'), kernels, biases
+  return tf.concat([ex1x1, ex3x3], 3, name=layer_name+'/concat') * is_active, kernels, biases
 
 
 
-def res_module(layer_name, input_tensor, stddev=0.01,freeze=False):
+def res_module(input_tensor, is_active, layer_name, stddev=0.01, freeze=False):
   """res layer constructor.
   Args:
     layer_name: layer name
@@ -348,10 +348,10 @@ def res_module(layer_name, input_tensor, stddev=0.01,freeze=False):
   kernels.append(_kernel)
   biases.append(_bias)
 
-  return input_tensor + feature_map_of_secondlayer, kernels, biases
+  return (input_tensor + feature_map_of_secondlayer) * is_active, kernels, biases
 
 
-def Dimensionality_reduction_module(layer_name, input_tensor, c3x3, stddev=0.01,freeze=False):
+def Dimensionality_reduction_module(input_tensor, c3x3, is_active, layer_name, stddev=0.01,freeze=False):
   """Dimensionality_reduction layer constructor.
   Args:
     layer_name: layer name
@@ -361,8 +361,8 @@ def Dimensionality_reduction_module(layer_name, input_tensor, c3x3, stddev=0.01,
   Returns:
     Dimensionality_reduction operation.
   """
-  feature_map_of_pooling, _, __ = max_pooling_layer(layer_name+'/pooling', input_tensor,  size= 2, stride=2, padding='VALID')
+  feature_map_of_pooling = _max_pooling_layer(layer_name+'/pooling', input_tensor,  size= 2, stride=2, padding='VALID')
   feature_map_of_convolution, _kernel, _bias = _conv_layer(layer_name+'/convolution', input_tensor, filters=c3x3, size=2, stride=2,
     padding='VALID', stddev=stddev, freeze=freeze)
-  return  tf.concat([feature_map_of_pooling, feature_map_of_convolution], 3, name=layer_name+'/concat_pc'), [_kernel], [_bias]
+  return  tf.concat([feature_map_of_pooling, feature_map_of_convolution], 3, name=layer_name+'/concat_pc') * is_active, [_kernel], [_bias]
 
