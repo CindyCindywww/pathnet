@@ -322,6 +322,43 @@ def fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev=0.0
 
 
 
+def Res_fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev=0.01,freeze=False):
+  """Fire layer constructor.
+
+  Args:
+    layer_name: layer name
+    input_tensor: input tensor
+    s1x1: number of 1x1 filters in squeeze layer.
+    e1x1: number of 1x1 filters in expand layer.
+    e3x3: number of 3x3 filters in expand layer.
+    freeze: if true, do not train parameters in this layer.
+  Returns:
+    fire layer operation.
+  """
+  kernels = []
+  biases = []
+
+  sq1x1, _kernel, _bias = _conv_layer(layer_name+'/squeeze1x1', input_tensor, filters=s1x1, size=1, stride=1,
+    padding='SAME', stddev=stddev, freeze=freeze)
+  kernels.append(_kernel)
+  biases.append(_bias)
+
+  ex1x1 ,_kernel, _bias= _conv_layer(layer_name+'/expand1x1', sq1x1, filters=e1x1, size=1, stride=1,
+    padding='SAME', stddev=stddev, freeze=freeze)
+  kernels.append(_kernel)
+  biases.append(_bias)
+
+  ex3x3 ,_kernel, _bias= _conv_layer(layer_name+'/expand3x3', sq1x1, filters=e3x3, size=3, stride=1,
+    padding='SAME', stddev=stddev, freeze=freeze)
+  kernels.append(_kernel)
+  biases.append(_bias)
+
+  concat_result = tf.concat([ex1x1, ex3x3], 3, name=layer_name+'/concat')
+  
+  return (concat_result + input_tensor)* is_active, kernels, biases
+
+
+
 def res_module(input_tensor, is_active, layer_name, stddev=0.01, freeze=False):
   """res layer constructor.
   Args:
