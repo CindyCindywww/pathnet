@@ -396,9 +396,9 @@ if __name__ == '__main__':
                       help='Number of steps to run trainer.')
   parser.add_argument('--dropout', type=float, default=0.9,
                       help='Keep probability for training dropout.')
-  parser.add_argument('--svhn_data_dir', type=str, default='/tmp/tensorflow/svhn/input_data',
+  parser.add_argument('--svhn_data_dir', type=str, default='/home/petch/Desktop/zzs/data_set/svhn_data',
                       help='Directory for storing input data')
-  parser.add_argument('--cifar_data_dir', type=str, default='/tmp/cifar10_data/cifar-10-batches-bin/',
+  parser.add_argument('--cifar_data_dir', type=str, default='/home/petch/Desktop/zzs/data_set/cifar_data/cifar-10-batches-bin',
                       help='Directory for storing input data')
   parser.add_argument('--log_dir', type=str, default='/tmp/tensorflow/pathnet/',
                       help='Summaries log directry')

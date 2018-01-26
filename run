@@ -1,1 +1,2 @@
-python binary_mnist_pathnet_res_fire.py
+python cifar_svhn_pathnet_res_fire.py
+
