@@ -124,7 +124,7 @@ def train():
     y_ = tf.placeholder(tf.float32, [None, 10], name='y-input')
 
   with tf.name_scope('input_reshape'):
-    image_shaped_input = tf.reshape(x, [-1, 32, 32, 1])
+    image_shaped_input = tf.reshape(x, [-1, 32, 32, 3])
     tf.summary.image('input', image_shaped_input, 2)
 
   # geopath_examples
@@ -170,7 +170,7 @@ def train():
       _length *= int(_i)
   net=tf.reshape(net,[-1,_length])
     # full connection layer
-  y, output_weights, output_biases= pathnet.nn_layer(net, 2, 'output_layer');
+  y, output_weights, output_biases= pathnet.nn_layer(net, 10, 'output_layer');
 
   # Cross Entropy
   with tf.name_scope('cross_entropy'):
@@ -241,6 +241,12 @@ def train():
       pathnet.geopath_insert(sess,geopath_update_placeholders,geopath_update_ops,geopath_set[compet_idx[j]],FLAGS.L,FLAGS.M);
       acc_geo_tr=0;
       for k in range(FLAGS.T):
+        '''
+        print(x.shape)
+        print(tr_data1[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:].shape)
+        print(y.shape)
+        print(tr_label1[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:].shape)
+        '''
         summary_geo_tr, _, acc_geo_tmp = sess.run([merged, train_step,accuracy], feed_dict={x:tr_data1[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:],y_:tr_label1[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:]});
         acc_geo_tr+=acc_geo_tmp;
       acc_geo[j]=acc_geo_tr/FLAGS.T;
@@ -418,7 +424,7 @@ if __name__ == '__main__':
                       help='The Number of Candidates of geopath')
   parser.add_argument('--B', type=int, default=2,
                       help='The Number of Candidates for each competition')
-  parser.add_argument('--cifar_first', type=int, default=1,
+  parser.add_argument('--cifar_first', type=int, default=True,
                       help='If that is True, then cifar10 is first task.')
   FLAGS, unparsed = parser.parse_known_args()
   tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
