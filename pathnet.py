@@ -322,7 +322,7 @@ def fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev=0.0
 
 
 
-def Res_fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev=0.01,freeze=False):
+def res_fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev=0.01,freeze=False):
   """Fire layer constructor.
 
   Args:
