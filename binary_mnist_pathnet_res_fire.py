@@ -3,128 +3,84 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
-import sys,os,time
-import subprocess
-import scipy.io as sio
+import sys
+
 import tensorflow as tf
-from six.moves import urllib
-import cifar10
+
+import input_data
 import pathnet
+
 import numpy as np
+import time
 
 FLAGS = None
 
-def svhn_maybe_download_and_extract():
-  """Download and extract the tarball from website ( http://ufldl.stanford.edu/housenumbers/ )."""
-  """Copy the code from cifar10.py Tensorflow Example Code!!"""
-  dest_directory = FLAGS.svhn_data_dir
-  if not os.path.exists(dest_directory):
-    os.makedirs(dest_directory)
-  # Training Data
-  DATA_URL = 'http://ufldl.stanford.edu/housenumbers/train_32x32.mat'
-  filename = DATA_URL.split('/')[-1]
-  filepath = os.path.join(dest_directory, filename)
-  if not os.path.exists(filepath):
-    def _progress(count, block_size, total_size):
-      sys.stdout.write('\r>> Downloading %s %.1f%%' % (filename,
-          float(count * block_size) / float(total_size) * 100.0))
-      sys.stdout.flush()
-    filepath, _ = urllib.request.urlretrieve(DATA_URL, filepath, _progress)
-    print()
-    statinfo = os.stat(filepath)
-    print('Successfully downloaded', filename, statinfo.st_size, 'bytes.')
-
-  # Test Data
-  DATA_URL = 'http://ufldl.stanford.edu/housenumbers/test_32x32.mat'
-  filename = DATA_URL.split('/')[-1]
-  filepath = os.path.join(dest_directory, filename)
-  if not os.path.exists(filepath):
-    def _progress(count, block_size, total_size):
-      sys.stdout.write('\r>> Downloading %s %.1f%%' % (filename,
-          float(count * block_size) / float(total_size) * 100.0))
-      sys.stdout.flush()
-    filepath, _ = urllib.request.urlretrieve(DATA_URL, filepath, _progress)
-    print()
-    statinfo = os.stat(filepath)
-    print('Successfully downloaded', filename, statinfo.st_size, 'bytes.')
 
 def train():
-  # Get SVHN dataset
-  svhn_maybe_download_and_extract();
-  file_name=os.path.join(FLAGS.svhn_data_dir,"train_32x32.mat");
-  train=sio.loadmat(file_name);
-  tr_data_svhn=np.zeros((len(train['y']),32*32*3),dtype=float);
-  tr_label_svhn=np.zeros((len(train['y']),10),dtype=float);
-  for i in range(len(train['y'])):
-    tr_data_svhn[i]=np.reshape(train['X'][:,:,:,i],[1,32*32*3]);
-    tr_label_svhn[i,train['y'][i][0]-1]=1.0;
-  tr_data_svhn=tr_data_svhn/255.0;
+  # Import data
+  mnist = input_data.read_data_sets(FLAGS.data_dir,
+                                    one_hot=True,
+                                    fake_data=FLAGS.fake_data)
+  total_tr_data, total_tr_label = mnist.train.next_batch(mnist.train._num_examples);
+  
+  # Gathering a1 Data
+  tr_data_a1=total_tr_data[(total_tr_label[:,FLAGS.a1]==1.0)];
+  for i in range(len(tr_data_a1)):
+    for j in range(len(tr_data_a1[0])):
+      rand_num=np.random.rand();
+      if(rand_num>=0.5):
+        tr_data_a1[i,j]=np.minimum(tr_data_a1[i,j]+rand_num,1.0);
+  
+  # Gathering a2 Data
+  tr_data_a2=total_tr_data[(total_tr_label[:,FLAGS.a2]==1.0)];
+  for i in range(len(tr_data_a2)):
+    for j in range(len(tr_data_a2[0])):
+      rand_num=np.random.rand();
+      if(rand_num>=0.5):
+        tr_data_a2[i,j]=np.minimum(tr_data_a2[i,j]+rand_num,1.0);
+  
+  # Gathering b1 Data
+  tr_data_b1=total_tr_data[(total_tr_label[:,FLAGS.b1]==1.0)];
+  for i in range(len(tr_data_b1)):
+    for j in range(len(tr_data_b1[0])):
+      rand_num=np.random.rand();
+      if(rand_num>=0.5):
+        tr_data_b1[i,j]=np.minimum(tr_data_b1[i,j]+rand_num,1.0);
 
-  file_name=os.path.join(FLAGS.svhn_data_dir,"test_32x32.mat");
-  test=sio.loadmat(file_name);
-  ts_data_svhn=np.zeros((len(test['y']),32*32*3),dtype=float);
-  ts_label_svhn=np.zeros((len(test['y']),10),dtype=float);
-  for i in range(len(test['y'])):
-    ts_data_svhn[i]=np.reshape(test['X'][:,:,:,i],[1,32*32*3]);
-    ts_label_svhn[i,test['y'][i][0]-1]=1.0;
-  ts_data_svhn=ts_data_svhn/255.0;
-  data_num_len_svhn=len(tr_label_svhn);
+  # Gathering b2 Data
+  tr_data_b2=total_tr_data[(total_tr_label[:,FLAGS.b2]==1.0)];
+  for i in range(len(tr_data_b2)):
+    for j in range(len(tr_data_b2[0])):
+      rand_num=np.random.rand();
+      if(rand_num>=0.5):
+        tr_data_b2[i,j]=np.minimum(tr_data_b2[i,j]+rand_num,1.0);
 
-  # Get CIFAR 10  dataset
-  cifar10.maybe_download_and_extract();
-  tr_label_cifar10=np.zeros((50000,10),dtype=float);
-  ts_label_cifar10=np.zeros((10000,10),dtype=float);
-  for i in range(1,6):
-    file_name=os.path.join(FLAGS.cifar_data_dir,"data_batch_"+str(i)+".bin");
-    f = open(file_name,"rb");
-    data=np.reshape(bytearray(f.read()),[10000,3073]);
-    if(i==1):
-      tr_data_cifar10=data[:,1:]/255.0;
+  tr_data1=np.append(tr_data_a1,tr_data_a2,axis=0);
+  tr_label1=np.zeros((len(tr_data1),2),dtype=float);
+  for i in range(len(tr_data1)):
+    if(i<len(tr_data_a1)):
+      tr_label1[i,0]=1.0;
     else:
-      tr_data_cifar10=np.append(tr_data_cifar10,data[:,1:]/255.0,axis=0);
-    for j in range(len(data)):
-      tr_label_cifar10[(i-1)*10000+j,data[j,0]]=1.0;
-  file_name=os.path.join(FLAGS.cifar_data_dir,"test_batch.bin");
-  f = open(file_name,"rb");
-  data=np.reshape(bytearray(f.read()),[10000,3073]);
-  for i in range(len(data)):
-    ts_label_cifar10[i,data[i,0]]=1.0;
-  ts_data_cifar10=data[:,1:]/255.0;
-  data_num_len_cifar10=len(tr_label_cifar10);
+      tr_label1[i,1]=1.0;
 
-  if(FLAGS.cifar_first):
-    tr_data1=tr_data_cifar10;
-    tr_label1=tr_label_cifar10;
-    ts_data1=ts_data_cifar10;
-    ts_label1=ts_label_cifar10;
-    data_num_len1=data_num_len_cifar10;
-    tr_data2=tr_data_svhn;
-    tr_label2=tr_label_svhn;
-    ts_data2=ts_data_svhn;
-    ts_label2=ts_label_svhn;
-    data_num_len2=data_num_len_svhn;
-  else:
-    tr_data1=tr_data_svhn;
-    tr_label1=tr_label_svhn;
-    ts_data1=ts_data_svhn;
-    ts_label1=ts_label_svhn;
-    data_num_len1=data_num_len_svhn;
-    tr_data2=tr_data_cifar10;
-    tr_label2=tr_label_cifar10;
-    ts_data2=ts_data_cifar10;
-    ts_label2=ts_label_cifar10;
-    data_num_len2=data_num_len_cifar10;
+  tr_data2=np.append(tr_data_b1,tr_data_b2,axis=0);
+  tr_label2=np.zeros((len(tr_data2),2),dtype=float);
+  for i in range(len(tr_data2)):
+    if(i<len(tr_data_b1)):
+      tr_label2[i,0]=1.0;
+    else:
+      tr_label2[i,1]=1.0;
   
   ## TASK 1
   sess = tf.InteractiveSession()
 
   # Input placeholders
   with tf.name_scope('input'):
-    x = tf.placeholder(tf.float32, [None, 32*32*3], name='x-input')
-    y_ = tf.placeholder(tf.float32, [None, 10], name='y-input')
+    x = tf.placeholder(tf.float32, [None, 784], name='x-input')
+    y_ = tf.placeholder(tf.float32, [None, 2], name='y-input')
 
   with tf.name_scope('input_reshape'):
-    image_shaped_input = tf.reshape(x, [-1, 32, 32, 1])
+    image_shaped_input = tf.reshape(x, [-1, 28, 28, 1])
     tf.summary.image('input', image_shaped_input, 2)
 
   # geopath_examples
@@ -137,8 +93,8 @@ def train():
       fixed_list[i,j]='0';    
 
   # Hidden Layers
-  weights_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object);
-  biases_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object);
+  weights_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object)  # weights_list also record conv_kernels
+  biases_list=np.zeros((FLAGS.L,FLAGS.M),dtype=object)
 
   # model define
   layer_modules_list=np.zeros(FLAGS.M,dtype=object)
@@ -202,6 +158,7 @@ def train():
   merged = tf.summary.merge_all()
   train_writer = tf.summary.FileWriter(FLAGS.log_dir + '/train1', sess.graph)
   test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/test1')
+
   tf.global_variables_initializer().run()
 
   # Generating randomly geopath
@@ -256,9 +213,22 @@ def train():
         geopath_set[compet_idx[j]]=pathnet.mutation(geopath_set[compet_idx[j]],FLAGS.L,FLAGS.M,FLAGS.N);
     train_writer.add_summary(summary, i);
     print('Training Accuracy at step %s: %s' % (i, acc));
-  
-  acc_task1=acc;    
-  task1_optimal_path=geopath_set[compet_idx[winner_idx]];
+    if(acc >= 0.99):
+      print('Learning Done!!');
+      print('Optimal Path is as followed.');
+      print(geopath_set[compet_idx[winner_idx]]);
+      task1_optimal_path=geopath_set[compet_idx[winner_idx]];
+      break;
+    """
+    geopath_sum=np.zeros((len(geopath),len(geopath[0])),dtype=float);
+    for j in range(len(geopath_set)):
+      for k in range(len(geopath)):
+        for l in range(len(geopath[0])):
+          geopath_sum[k][l]+=geopath_set[j][k][l];
+    print(geopath_sum);
+    """    
+  # record steps to find optimal path in task1
+  iter_task1=i;    
   
   # Fix task1 Optimal Path
   for i in range(FLAGS.L):
@@ -275,6 +245,13 @@ def train():
         var_list_to_fix+=weights_list[i,j]+biases_list[i,j];
   var_list_fix=pathnet.parameters_backup(var_list_to_fix);
 
+  """
+  for i in range(FLAGS.L):
+    for j in range(FLAGS.M):
+      if(task1_optimal_path[i,j]==1.0):
+        fixed_list[i,j]='0';
+  """
+
   # parameters placeholders and ops 
   var_fix_ops=np.zeros(len(var_list_to_fix),dtype=object);
   var_fix_placeholders=np.zeros(len(var_list_to_fix),dtype=object);
@@ -284,18 +261,20 @@ def train():
  
   ## TASK 2
   # Need to learn variables
-  var_list_to_learn=[]+output_weights+output_biases;
+  var_list_to_learn=[]+output_weights+output_biases
   for i in range(FLAGS.L):
     for j in range(FLAGS.M):
       if (fixed_list[i,j]=='0'):
-        var_list_to_learn+=weights_list[i,j]+biases_list[i,j];
-  
+        var_list_to_learn+=weights_list[i,j]+biases_list[i,j]
+
+  '''
   for i in range(FLAGS.L):
     for j in range(FLAGS.M):
       if(fixed_list[i,j]=='1'):
         tmp=biases_list[i,j][0];
         break;
     break;
+  '''
 
   # Initialization
   merged = tf.summary.merge_all()
@@ -306,7 +285,7 @@ def train():
   # Update fixed values
   pathnet.parameters_update(sess,var_fix_placeholders,var_fix_ops,var_list_fix);
  
-  # GradientDescent  
+  # GradientDescent
   with tf.name_scope('train'):
     train_step = tf.train.GradientDescentOptimizer(FLAGS.learning_rate).minimize(cross_entropy,var_list=var_list_to_learn);
   
@@ -361,52 +340,59 @@ def train():
         geopath_set[compet_idx[j]]=pathnet.mutation(geopath_set[compet_idx[j]],FLAGS.L,FLAGS.M,FLAGS.N);
     train_writer.add_summary(summary, i);
     print('Training Accuracy at step %s: %s' % (i, acc));
+    if(acc >= 0.99):
+      print('Learning Done!!');
+      print('Optimal Path is as followed.');
+      print(geopath_set[compet_idx[winner_idx]]);
+      task2_optimal_path=geopath_set[compet_idx[winner_idx]];
+      break;
+    """
+    geopath_sum=np.zeros((len(geopath),len(geopath[0])),dtype=float);
+    for j in range(len(geopath_set)):
+      for k in range(len(geopath)):
+        for l in range(len(geopath[0])):
+          geopath_sum[k][l]+=geopath_set[j][k][l];
+    print(geopath_sum);
+    """
 
-  acc_task2=acc;   
-  
-  if(FLAGS.cifar_first):
-    print("CIFAR10_SVHN,TASK1:"+str(acc_task1)+",TASK2:"+str(acc_task2)+",Done");
-  else: 
-    print("SVHN_CIFAR10,TASK1:"+str(acc_task1)+",TASK2:"+str(acc_task2)+",Done");
-  
+  iter_task2=i;      
+  overlap=0;
+  for i in range(len(task1_optimal_path)):
+    for j in range(len(task1_optimal_path[0])):
+      if(task1_optimal_path[i,j]==task2_optimal_path[i,j])&(task1_optimal_path[i,j]==1.0):
+        overlap+=1;
+  print("Entire Iter:"+str(iter_task1+iter_task2)+",TASK1:"+str(iter_task1)+",TASK2:"+str(iter_task2)+",Overlap:"+str(overlap));
+ 
   train_writer.close()
   test_writer.close()
 
-
 def main(_):
-  if(FLAGS.cifar_first):
-    FLAGS.log_dir+="cifar_svhn/";
-  else:
-    FLAGS.log_dir+="svhn_cifar/";
   FLAGS.log_dir+=str(int(time.time()));
   if tf.gfile.Exists(FLAGS.log_dir):
     tf.gfile.DeleteRecursively(FLAGS.log_dir)
   tf.gfile.MakeDirs(FLAGS.log_dir)
   train()
 
-
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--fake_data', nargs='?', const=True, type=bool,
                       default=False,
                       help='If true, uses fake data for unit testing.')
-  parser.add_argument('--learning_rate', type=float, default=0.2,
+  parser.add_argument('--learning_rate', type=float, default=0.05,
                       help='Initial learning rate')
-  parser.add_argument('--max_steps', type=int, default=500,
+  parser.add_argument('--max_steps', type=int, default=10000,
                       help='Number of steps to run trainer.')
   parser.add_argument('--dropout', type=float, default=0.9,
                       help='Keep probability for training dropout.')
-  parser.add_argument('--svhn_data_dir', type=str, default='/tmp/tensorflow/svhn/input_data',
+  parser.add_argument('--data_dir', type=str, default='/tmp/tensorflow/mnist/input_data',
                       help='Directory for storing input data')
-  parser.add_argument('--cifar_data_dir', type=str, default='/tmp/cifar10_data/cifar-10-batches-bin/',
-                      help='Directory for storing input data')
-  parser.add_argument('--log_dir', type=str, default='/tmp/tensorflow/pathnet/',
+  parser.add_argument('--log_dir', type=str, default='/tmp/tensorflow/pathnet/binary_mnist/pathnet/1_3_1_2',
                       help='Summaries log directry')
   parser.add_argument('--M', type=int, default=20,
                       help='The Number of Modules per Layer')
   parser.add_argument('--L', type=int, default=4,
                       help='The Number of Layers')
-  parser.add_argument('--N', type=int, default=5,
+  parser.add_argument('--N', type=int, default=3,
                       help='The Number of Selected Modules per Layer')
   parser.add_argument('--T', type=int, default=50,
                       help='The Number of epoch per each geopath')
@@ -418,7 +404,13 @@ if __name__ == '__main__':
                       help='The Number of Candidates of geopath')
   parser.add_argument('--B', type=int, default=2,
                       help='The Number of Candidates for each competition')
-  parser.add_argument('--cifar_first', type=int, default=1,
-                      help='If that is True, then cifar10 is first task.')
+  parser.add_argument('--a1', type=int, default=1,
+                      help='The first class of task1')
+  parser.add_argument('--a2', type=int, default=3,
+                      help='The second class of task1')
+  parser.add_argument('--b1', type=int, default=1,
+                      help='The first class of task2')
+  parser.add_argument('--b2', type=int, default=2,
+                      help='The second class of task2')
   FLAGS, unparsed = parser.parse_known_args()
   tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)

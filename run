@@ -1,2 +1,1 @@
-# python binary_mnist_pathnet.py
-python binary_mnist_pathnet_with_conv.py
+python binary_mnist_pathnet_res_fire.py

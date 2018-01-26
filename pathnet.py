@@ -281,7 +281,7 @@ def _max_pooling_layer(input_tensor, kernel_size, stride, padding, layer_name):
   
     """
   with tf.variable_scope(layer_name) as scope:
-    out =  tf.nn.max_pool(input_tensor, ksize=[1, size, size, 1], 
+    out =  tf.nn.max_pool(input_tensor, ksize=[1, kernel_size, kernel_size, 1], 
                           strides=[1, stride, stride, 1],padding=padding)
     activation_size = np.prod(out.get_shape().as_list()[1:])
     return out
@@ -398,7 +398,7 @@ def Dimensionality_reduction_module(input_tensor, c3x3, is_active, layer_name, s
   Returns:
     Dimensionality_reduction operation.
   """
-  feature_map_of_pooling = _max_pooling_layer(layer_name+'/pooling', input_tensor,  size= 2, stride=2, padding='VALID')
+  feature_map_of_pooling = _max_pooling_layer(input_tensor,  kernel_size= 2, stride=2, padding='VALID', layer_name = layer_name+'/pooling')
   feature_map_of_convolution, _kernel, _bias = _conv_layer(layer_name+'/convolution', input_tensor, filters=c3x3, size=2, stride=2,
     padding='VALID', stddev=stddev, freeze=freeze)
   return  tf.concat([feature_map_of_pooling, feature_map_of_convolution], 3, name=layer_name+'/concat_pc') * is_active, [_kernel], [_bias]
