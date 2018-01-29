@@ -10,24 +10,15 @@ import tensorflow as tf
 from six.moves import urllib
 import pathnet
 import numpy as np
-import debug # debug is for imagenet data reading and process
+import imagenet_data
 
 FLAGS = None
 
 def train():
-  ## Get imageNet dataset
-  debug......
+  ## Get imageNet dataset for task1
+  data_task1_len = 10*len(os.listdir(FLAGS.imagenet_data_dir1 + '/0'))
+  tr_data1, tr_label1 = imagenet_data.read_batch(data_task1_len, FLAGS.imagenet_data_dir1)
 
-  tr_data1=tr_data_cifar10;
-  tr_label1=tr_label_cifar10;
-  ts_data1=ts_data_cifar10;
-  ts_label1=ts_label_cifar10;
-  
-  tr_data2=tr_data_svhn;
-  tr_label2=tr_label_svhn;
-  ts_data2=ts_data_svhn;
-  ts_label2=ts_label_svhn;
- 
   ## TASK 1
   sess = tf.InteractiveSession()
 
@@ -68,7 +59,7 @@ def train():
     # res_fire layer
   i = 2
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.res_fire(net, FLAGS.filt, 20, 20, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.res_fire_layer(net, 30, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
     # dimensionality_reduction layer
   i = 3
@@ -84,7 +75,7 @@ def train():
     # model2 layer
   i = 4
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.model2(j, net, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module(net, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
 
   # output layer
   y, output_weights, output_biases= pathnet.nn_layer(net, 10, 'output_layer');
@@ -211,6 +202,10 @@ def train():
     var_fix_ops[i]=var_list_to_fix[i].assign(var_fix_placeholders[i]);
  
   ## TASK 2
+  # Get imageNet dataset for task2
+  data_task2_len = 10*len(os.listdir(FLAGS.imagenet_data_dir2 + '/0'))
+  tr_data2, tr_label2 = imagenet_data.read_batch(data_task2_len, FLAGS.imagenet_data_dir2)
+
   # Need to learn variables
   var_list_to_learn=[]+output_weights+output_biases;
   for i in range(FLAGS.L):
@@ -323,19 +318,21 @@ if __name__ == '__main__':
                       help='If true, uses fake data for unit testing.')
   parser.add_argument('--learning_rate', type=float, default=0.2,
                       help='Initial learning rate')
-  parser.add_argument('--max_steps', type=int, default=1000,
+  parser.add_argument('--max_steps', type=int, default=3,
                       help='Number of steps to run trainer.')
   parser.add_argument('--dropout', type=float, default=0.9,
                       help='Keep probability for training dropout.')
-  parser.add_argument('--imagenet_data_dir', type=str, default='./adf',
+  parser.add_argument('--imagenet_data_dir1', type=str, default='../data_set/imagenet/task1',
+                      help='Directory for storing input data')
+  parser.add_argument('--imagenet_data_dir2', type=str, default='../data_set/imagenet/task2',
                       help='Directory for storing input data')
   parser.add_argument('--log_dir', type=str, default='/tmp/tensorflow/pathnet/',
                       help='Summaries log directry')
-  parser.add_argument('--M', type=int, default=40,
+  parser.add_argument('--M', type=int, default=30,
                       help='The Number of Modules per Layer')
   parser.add_argument('--L', type=int, default=5,
                       help='The Number of Layers')
-  parser.add_argument('--N', type=int, default=5,
+  parser.add_argument('--N', type=int, default=7,
                       help='The Number of Selected Modules per Layer')
   parser.add_argument('--T', type=int, default=50,
                       help='The Number of epoch per each geopath')

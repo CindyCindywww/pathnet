@@ -322,7 +322,7 @@ def fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev=0.0
 
 
 
-def res_fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev=0.01,freeze=False):
+def res_fire_layer(input_tensor, e1x1, is_active, layer_name, stddev=0.01,freeze=False):
   """Fire layer constructor.
 
   Args:
@@ -337,6 +337,9 @@ def res_fire_layer(input_tensor, s1x1, e1x1, e3x3, is_active, layer_name, stddev
   """
   kernels = []
   biases = []
+
+  s1x1 = input_tensor.get_shape()[3]
+  e3x3 = s1x1 - e1x1
 
   sq1x1, _kernel, _bias = _conv_layer(layer_name+'/squeeze1x1', input_tensor, filters=s1x1, size=1, stride=1,
     padding='SAME', stddev=stddev, freeze=freeze)

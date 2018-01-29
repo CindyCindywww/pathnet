@@ -25,7 +25,7 @@ def onehot(index):
 	""" It creates a one-hot vector with a 1.0 in
 		position represented by index 
 	"""
-	onehot = np.zeros(2)
+	onehot = np.zeros(10)
 	onehot[index] = 1.0
 	return onehot
 
@@ -37,7 +37,7 @@ def read_batch(batch_size, images_source):
 		class_index = random.randint(0,1)
 		batch_images.append(read_images(os.path.join(images_source, str(class_index))))
 		batch_labels.append(onehot(class_index))
-	return batch_images, batch_labels
+	return np.array(batch_images), np.array(batch_labels)
 		
 
 def read_images(images_folder):
@@ -78,7 +78,9 @@ def preprocess_image(image_path):
 
 	for i in range(3):
 		cropped_im_array[:,:,i] -= IMAGENET_MEAN[i]
-
+	cropped_im_array = cropped_im_array / 255.0
+	cropped_im_array_shape = np.shape(cropped_im_array)
+	cropped_im_array = np.resize(cropped_im_array,(cropped_im_array_shape[0]*cropped_im_array_shape[1]*cropped_im_array_shape[2]))
 	#for i in range(3):
 	#	mean = np.mean(img_c1_np[:,:,i])
 	#	stddev = np.std(img_c1_np[:,:,i])
@@ -90,13 +92,10 @@ def preprocess_image(image_path):
 if __name__ == "__main__":
 	data_folder_task1 = './imagenet/task1'
 	data_folder_task2 = './imagenet/task2'
-	data_task1_len = len(os.listdir('./imagenet/task1/0'))+len(os.listdir('./imagenet/task1/1'))
-	data_task2_len = len(os.listdir('./imagenet/task2/0'))+len(os.listdir('./imagenet/task2/1'))
+	data_task1_len =  10*len(os.listdir('./imagenet/task1/0'))
+	data_task2_len =  10*len(os.listdir('./imagenet/task2/0'))
 
-	#Number of image per task
 	img1, label1 = read_batch(data_task1_len, data_folder_task1)
+	print(np.shape(img1))
 	img2, label2 = read_batch(data_task2_len, data_folder_task2)
-	img1.reshape((data_task1_len,224*224*3))
-	print (np.shape(img1))
-
 
