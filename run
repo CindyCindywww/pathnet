@@ -1,2 +1,3 @@
-python cifar_svhn_pathnet_res_fire.py
+python imagenet_pathnet.py
+
 

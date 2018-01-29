@@ -92,8 +92,6 @@ def train():
   ts_data_cifar10=data[:,1:]/255.0;
   data_num_len_cifar10=len(tr_label_cifar10);
 
-  print(ts_label_cifar10.shape)
-  print(ts_label_cifar10[0])
   if(FLAGS.cifar_first):
     tr_data1=tr_data_cifar10;
     tr_label1=tr_label_cifar10;
@@ -149,10 +147,10 @@ def train():
   for j in range(FLAGS.M):
     layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.conv_module(image_shaped_input, FLAGS.filt, [5,5], geopath[i,j], 1,  'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
-    # res-fire layer
+    # res layer
   i = 1
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.res_fire_layer(net, FLAGS.filt, 10, 10, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.res_module(net, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
     # dimensionality_reduction layer
   i = 2
