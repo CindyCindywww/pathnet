@@ -12,39 +12,37 @@ import numpy as np
 import time
 import random
 from PIL import Image
+import scipy.misc as misc
 
+def create_file_queue(dir_path):
+	filename = [] 
+	labels = []
+	for i in range(10):
+		filename.extend(os.listdir(dir_path+"/"+str(i)))
+		_len = len(os.listdir(dir_path+'/' + str(i)))
+		labels.extend([i for j in range(_len)])
+	print("sample number : "+str(len(filename)))
+	filename_queue = tf.train.slice_input_producer([filename,labels], shuffle=True)
+	return filename_queue[0], filename_queue[1]
 
-#return the numble of images in a folder
-def imge_size(im_path):
-	n = 0
-	for f in os.listdir(im_path):
-		n += 1
-	return n
-
-def onehot(index):
+def onehot(index, length):
 	""" It creates a one-hot vector with a 1.0 in
 		position represented by index 
 	"""
-	onehot = np.zeros(10)
+	onehot = np.zeros(length)
 	onehot[index] = 1.0
 	return onehot
 
 
-def read_batch(batch_size, images_source):
+def read_batch(sess, filenames, labels, batch_size, images_source):
 	batch_images = []
 	batch_labels = []
 	for i in range(batch_size):
-		class_index = random.randint(0,1)
-		batch_images.append(read_images(os.path.join(images_source, str(class_index))))
-		batch_labels.append(onehot(class_index))
-	return np.array(batch_images), np.array(batch_labels)
-		
-
-def read_images(images_folder):
-	image_path = os.path.join(images_folder,random.choice(os.listdir(images_folder)))
-	im_array = preprocess_image(image_path)
-	return im_array
-
+		filename, label = sess.run([filenames, labels])
+		batch_images.append(preprocess_image(images_source+"/"+str(label)+"/"+filename))
+		batch_labels.append(onehot(label, 10))
+		#print(label)
+	return batch_images, batch_labels
 
 def preprocess_image(image_path):
 	""" It reads an image, it resize it to have the lowest dimesnion of 256px,
@@ -88,14 +86,36 @@ def preprocess_image(image_path):
 	#	img_c1_np[:,:,i] /= stddev
 
 	return cropped_im_array
+	
+'''
+#return the numble of images in a folder
+def imge_size(im_path):
+	n = 0
+	for f in os.listdir(im_path):
+		n += 1
+	return n
+'''
 
 if __name__ == "__main__":
-	data_folder_task1 = './imagenet/task1'
-	data_folder_task2 = './imagenet/task2'
-	data_task1_len =  10*len(os.listdir('./imagenet/task1/0'))
-	data_task2_len =  10*len(os.listdir('./imagenet/task2/0'))
+	data_folder_task1 = '../data_set/imagenet/task1'
+	data_folder_task2 = '../data_set/imagenet/task1'
+	filename, label = create_file_queue(data_folder_task1)
 
-	img1, label1 = read_batch(data_task1_len, data_folder_task1)
-	print(np.shape(img1))
-	img2, label2 = read_batch(data_task2_len, data_folder_task2)
+	sess = tf.InteractiveSession()
+	tf.global_variables_initializer().run()
+	tf.local_variables_initializer().run()
 
+	coord = tf.train.Coordinator()
+	threads = tf.train.start_queue_runners(sess=sess,coord=coord)
+	for i in range(50):
+		batch_images, batch_labels = read_batch(sess, filename, label, 16, data_folder_task1)
+	#print(np.array(batch_images).shape)
+	#print(batch_labels[0])
+	#print(batch_images[0])
+
+	coord.request_stop()
+	coord.join(threads)
+
+	
+
+	

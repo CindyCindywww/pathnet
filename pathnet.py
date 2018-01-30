@@ -109,6 +109,7 @@ def module(input_tensor, filt_num, is_active, layer_name, act=tf.nn.relu):
   # init
   weights=module_weight_variable([int(input_tensor.shape[-1]), filt_num])
   biases=module_bias_variable([filt_num])
+  #print([int(input_tensor.shape[-1]), filt_num])
 
   # Adding a name scope ensures logical grouping of the layers in the graph.
   with tf.name_scope(layer_name):

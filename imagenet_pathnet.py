@@ -16,8 +16,7 @@ FLAGS = None
 
 def train():
   ## Get imageNet dataset for task1
-  data_task1_len = 10*len(os.listdir(FLAGS.imagenet_data_dir1 + '/0'))
-  tr_data1, tr_label1 = imagenet_data.read_batch(data_task1_len, FLAGS.imagenet_data_dir1)
+  tr_data1, tr_label1 = imagenet_data.create_file_queue(FLAGS.imagenet_data_dir1)
 
   ## TASK 1
   sess = tf.InteractiveSession()
@@ -54,17 +53,17 @@ def train():
     # dimensionality_reduction layer
   i = 1
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.Dimensionality_reduction_module(net, 20, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.Dimensionality_reduction_module(net, FLAGS.filt / 2, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
     # res_fire layer
   i = 2
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.res_fire_layer(net, 30, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.res_fire_layer(net, FLAGS.filt / 2, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
     # dimensionality_reduction layer
   i = 3
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.Dimensionality_reduction_module(net, 20, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.Dimensionality_reduction_module(net, FLAGS.filt / 2, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
   net=np.sum(layer_modules_list)/FLAGS.M;
     # reshape before full connection layer
   _shape = net.shape[1:]
@@ -72,10 +71,11 @@ def train():
   for _i in _shape:
       _length *= int(_i)
   net=tf.reshape(net,[-1,_length])
-    # model2 layer
+    # model1 layer
   i = 4
   for j in range(FLAGS.M):
-    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module(net, FLAGS.filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+    layer_modules_list[j], weights_list[i,j], biases_list[i,j] = pathnet.module(net, FLAGS.full_connection_filt, geopath[i,j], 'layer'+str(i+1)+"_"+str(j+1))
+  net=np.sum(layer_modules_list)/FLAGS.M;
 
   # output layer
   y, output_weights, output_biases= pathnet.nn_layer(net, 10, 'output_layer');
@@ -111,6 +111,11 @@ def train():
   train_writer = tf.summary.FileWriter(FLAGS.log_dir + '/train1', sess.graph)
   test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/test1')
   tf.global_variables_initializer().run()
+  tf.local_variables_initializer().run()
+
+  # start data reading queue
+  coord = tf.train.Coordinator()
+  threads = tf.train.start_queue_runners(sess=sess,coord=coord)
 
   # Generating randomly geopath
   geopath_set=np.zeros(FLAGS.candi,dtype=object);
@@ -142,11 +147,6 @@ def train():
     compet_idx=compet_idx[:FLAGS.B];
     # Learning & Evaluating
     for j in range(len(compet_idx)):
-      # Shuffle the data
-      idx=range(len(tr_data1));
-      np.random.shuffle(idx);
-      tr_data1=tr_data1[idx];
-      tr_label1=tr_label1[idx];
       # Insert Candidate
       pathnet.geopath_insert(sess,geopath_update_placeholders,geopath_update_ops,geopath_set[compet_idx[j]],FLAGS.L,FLAGS.M);
       acc_geo_tr=0;
@@ -157,7 +157,8 @@ def train():
         print(y.shape)
         print(tr_label1[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:].shape)
         '''
-        summary_geo_tr, _, acc_geo_tmp = sess.run([merged, train_step,accuracy], feed_dict={x:tr_data1[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:],y_:tr_label1[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:]});
+        tr_data1_val, tr_label1_val = imagenet_data.read_batch(sess, tr_data1, tr_label1, FLAGS.batch_num, FLAGS.imagenet_data_dir1)
+        summary_geo_tr, _, acc_geo_tmp = sess.run([merged, train_step,accuracy], feed_dict={x:tr_data1_val ,y_:tr_label1_val});
         acc_geo_tr+=acc_geo_tmp;
       acc_geo[j]=acc_geo_tr/FLAGS.T;
       summary_geo[j]=summary_geo_tr;
@@ -178,7 +179,11 @@ def train():
       task1_optimal_path=geopath_set[compet_idx[winner_idx]];
       print('Task1 Optimal Path is as followed.');
       print(task1_optimal_path)
-    
+
+  # close data queue
+  coord.request_stop()
+  coord.join(threads) 
+
   # Fix task1 Optimal Path
   for i in range(FLAGS.L):
     for j in range(FLAGS.M):
@@ -203,8 +208,7 @@ def train():
  
   ## TASK 2
   # Get imageNet dataset for task2
-  data_task2_len = 10*len(os.listdir(FLAGS.imagenet_data_dir2 + '/0'))
-  tr_data2, tr_label2 = imagenet_data.read_batch(data_task2_len, FLAGS.imagenet_data_dir2)
+  tr_data2, tr_label2 = imagenet_data.create_file_queue(FLAGS.imagenet_data_dir2)
 
   # Need to learn variables
   var_list_to_learn=[]+output_weights+output_biases;
@@ -225,7 +229,12 @@ def train():
   train_writer = tf.summary.FileWriter(FLAGS.log_dir + '/train2', sess.graph)
   test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/test2')
   tf.global_variables_initializer().run()
-  
+  tf.local_variables_initializer().run()
+
+  # start data reading queue
+  coord = tf.train.Coordinator()
+  threads = tf.train.start_queue_runners(sess=sess,coord=coord)
+
   # Update fixed values
   pathnet.parameters_update(sess,var_fix_placeholders,var_fix_ops,var_list_fix);
  
@@ -254,12 +263,6 @@ def train():
     compet_idx=compet_idx[:FLAGS.B];
     # Learning & Evaluating
     for j in range(len(compet_idx)):
-      # Shuffle the data
-      idx=range(len(tr_data2));
-      np.random.shuffle(idx);
-      tr_data2=tr_data2[idx];tr_label2=tr_label2[idx];
-      geopath_insert=np.copy(geopath_set[compet_idx[j]]);
-      
       for l in range(FLAGS.L):
         for m in range(FLAGS.M):
           if(fixed_list[l,m]=='1'):
@@ -269,7 +272,8 @@ def train():
       pathnet.geopath_insert(sess,geopath_update_placeholders,geopath_update_ops,geopath_insert,FLAGS.L,FLAGS.M);
       acc_geo_tr=0;
       for k in range(FLAGS.T):
-        summary_geo_tr, _, acc_geo_tmp = sess.run([merged, train_step,accuracy], feed_dict={x:tr_data2[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:],y_:tr_label2[k*FLAGS.batch_num:(k+1)*FLAGS.batch_num,:]});
+        tr_data2_val, tr_label2_val = imagenet_data.read_batch(sess, tr_data2, tr_label2, FLAGS.batch_num, FLAGS.imagenet_data_dir1)
+        summary_geo_tr, _, acc_geo_tmp = sess.run([merged, train_step,accuracy], feed_dict={x:tr_data2_val ,y_:tr_label2_val});
         acc_geo_tr+=acc_geo_tmp;
       acc_geo[j]=acc_geo_tr/FLAGS.T;
       summary_geo[j]=summary_geo_tr;
@@ -290,8 +294,11 @@ def train():
       task2_optimal_path=geopath_set[compet_idx[winner_idx]];
       print('Task2 Optimal Path is as followed.');
       print(task2_optimal_path)
-      
-       
+  
+  # close data reading queue
+  coord.request_stop()
+  coord.join(threads)
+  
   overlap=0;
   for i in range(len(task1_optimal_path)):
     for j in range(len(task1_optimal_path[0])):
@@ -334,12 +341,14 @@ if __name__ == '__main__':
                       help='The Number of Layers')
   parser.add_argument('--N', type=int, default=7,
                       help='The Number of Selected Modules per Layer')
-  parser.add_argument('--T', type=int, default=50,
+  parser.add_argument('--T', type=int, default=1,
                       help='The Number of epoch per each geopath')
-  parser.add_argument('--batch_num', type=int, default=16,
+  parser.add_argument('--batch_num', type=int, default=8,
                       help='The Number of batches per each geopath')
   parser.add_argument('--filt', type=int, default=40,
                       help='The Number of Filters per Module')
+  parser.add_argument('--full_connection_filt', type=int, default=40,
+                      help='The Number of Filters in full connection layer')                      
   parser.add_argument('--candi', type=int, default=20,
                       help='The Number of Candidates of geopath')
   parser.add_argument('--B', type=int, default=2,
