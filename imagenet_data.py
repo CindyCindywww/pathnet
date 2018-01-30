@@ -37,6 +37,7 @@ def onehot(index, length):
 def read_batch(sess, filenames, labels, batch_size, images_source):
 	batch_images = []
 	batch_labels = []
+	#print(images_source)
 	for i in range(batch_size):
 		filename, label = sess.run([filenames, labels])
 		batch_images.append(preprocess_image(images_source+"/"+str(label)+"/"+filename))

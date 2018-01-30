@@ -341,8 +341,8 @@ def train():
       idx=range(len(tr_data2));
       np.random.shuffle(idx);
       tr_data2=tr_data2[idx];tr_label2=tr_label2[idx];
-      geopath_insert=np.copy(geopath_set[compet_idx[j]]);
       
+      geopath_insert=np.copy(geopath_set[compet_idx[j]]);
       for l in range(FLAGS.L):
         for m in range(FLAGS.M):
           if(fixed_list[l,m]=='1'):

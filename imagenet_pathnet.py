@@ -15,8 +15,9 @@ import imagenet_data
 FLAGS = None
 
 def train():
-  ## Get imageNet dataset for task1
+  ## Get imageNet dataset file queue for task1 and task2
   tr_data1, tr_label1 = imagenet_data.create_file_queue(FLAGS.imagenet_data_dir1)
+  tr_data2, tr_label2 = imagenet_data.create_file_queue(FLAGS.imagenet_data_dir2)
 
   ## TASK 1
   sess = tf.InteractiveSession()
@@ -110,6 +111,8 @@ def train():
   merged = tf.summary.merge_all()
   train_writer = tf.summary.FileWriter(FLAGS.log_dir + '/train1', sess.graph)
   test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/test1')
+
+  # init
   tf.global_variables_initializer().run()
   tf.local_variables_initializer().run()
 
@@ -180,10 +183,6 @@ def train():
       print('Task1 Optimal Path is as followed.');
       print(task1_optimal_path)
 
-  # close data queue
-  coord.request_stop()
-  coord.join(threads) 
-
   # Fix task1 Optimal Path
   for i in range(FLAGS.L):
     for j in range(FLAGS.M):
@@ -207,9 +206,6 @@ def train():
     var_fix_ops[i]=var_list_to_fix[i].assign(var_fix_placeholders[i]);
  
   ## TASK 2
-  # Get imageNet dataset for task2
-  tr_data2, tr_label2 = imagenet_data.create_file_queue(FLAGS.imagenet_data_dir2)
-
   # Need to learn variables
   var_list_to_learn=[]+output_weights+output_biases;
   for i in range(FLAGS.L):
@@ -230,10 +226,6 @@ def train():
   test_writer = tf.summary.FileWriter(FLAGS.log_dir + '/test2')
   tf.global_variables_initializer().run()
   tf.local_variables_initializer().run()
-
-  # start data reading queue
-  coord = tf.train.Coordinator()
-  threads = tf.train.start_queue_runners(sess=sess,coord=coord)
 
   # Update fixed values
   pathnet.parameters_update(sess,var_fix_placeholders,var_fix_ops,var_list_fix);
@@ -263,6 +255,7 @@ def train():
     compet_idx=compet_idx[:FLAGS.B];
     # Learning & Evaluating
     for j in range(len(compet_idx)):
+      geopath_insert=np.copy(geopath_set[compet_idx[j]]);
       for l in range(FLAGS.L):
         for m in range(FLAGS.M):
           if(fixed_list[l,m]=='1'):
@@ -272,7 +265,7 @@ def train():
       pathnet.geopath_insert(sess,geopath_update_placeholders,geopath_update_ops,geopath_insert,FLAGS.L,FLAGS.M);
       acc_geo_tr=0;
       for k in range(FLAGS.T):
-        tr_data2_val, tr_label2_val = imagenet_data.read_batch(sess, tr_data2, tr_label2, FLAGS.batch_num, FLAGS.imagenet_data_dir1)
+        tr_data2_val, tr_label2_val = imagenet_data.read_batch(sess, tr_data2, tr_label2, FLAGS.batch_num, FLAGS.imagenet_data_dir2)
         summary_geo_tr, _, acc_geo_tmp = sess.run([merged, train_step,accuracy], feed_dict={x:tr_data2_val ,y_:tr_label2_val});
         acc_geo_tr+=acc_geo_tmp;
       acc_geo[j]=acc_geo_tr/FLAGS.T;
@@ -325,7 +318,7 @@ if __name__ == '__main__':
                       help='If true, uses fake data for unit testing.')
   parser.add_argument('--learning_rate', type=float, default=0.2,
                       help='Initial learning rate')
-  parser.add_argument('--max_steps', type=int, default=3,
+  parser.add_argument('--max_steps', type=int, default=100,
                       help='Number of steps to run trainer.')
   parser.add_argument('--dropout', type=float, default=0.9,
                       help='Keep probability for training dropout.')
@@ -341,7 +334,7 @@ if __name__ == '__main__':
                       help='The Number of Layers')
   parser.add_argument('--N', type=int, default=7,
                       help='The Number of Selected Modules per Layer')
-  parser.add_argument('--T', type=int, default=1,
+  parser.add_argument('--T', type=int, default=50,
                       help='The Number of epoch per each geopath')
   parser.add_argument('--batch_num', type=int, default=8,
                       help='The Number of batches per each geopath')
